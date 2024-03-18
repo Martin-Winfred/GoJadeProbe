@@ -21,3 +21,6 @@ vendor/
 go.work
 
 docs/
+
+# IDE files
+.vscode/
