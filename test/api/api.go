@@ -1,4 +1,8 @@
-package api
+// This is a program that sends data to the server using the POST method.
+//which is the same as the one in the pkg/api/api.go file.
+//The only difference is that it can run as a program not a package.
+
+package main
 
 import (
 	"bytes"
@@ -7,6 +11,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -38,26 +43,23 @@ func encrypt(data []byte, passphrase string) ([]byte, error) {
 		return nil, err
 	}
 
-	// Create a new GCM block
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create a nonce
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
 
-	// Encrypt the data
 	ciphertext := gcm.Seal(nonce, nonce, data, nil)
 	return ciphertext, nil
 }
 
-func SentData(remoteHost string, iface string) error {
+func main() {
 	// Copy data to new struct
-	data, _ := monitor.GetHostMonitor(iface)
+	data, _ := monitor.GetHostMonitor("lo")
 	newData := HostMonitor{
 		Arch:      data.Arch,
 		OSInfo:    data.OSInfo,
@@ -78,21 +80,25 @@ func SentData(remoteHost string, iface string) error {
 
 	jsonData, err := json.Marshal(newData)
 	if err != nil {
-		return err
+		fmt.Println(err)
+		return
 	}
 
 	passphrase := "test1"                                    // Replace with your actual passphrase
 	hash := sha256.Sum256([]byte(passphrase))                // Generate hash from passphrase
 	encryptedData, err := encrypt(jsonData, string(hash[:])) // Convert hash to string
 	if err != nil {
-		return err
+		fmt.Println(err)
+		return
 	}
 
-	resp, err := http.Post(remoteHost, "application/octet-stream", bytes.NewBuffer(encryptedData))
+	resp, err := http.Post("http://127.0.0.1:5000/api", "application/octet-stream", bytes.NewBuffer(encryptedData))
 	if err != nil {
-		return err
+		fmt.Println(err)
+		return
 	}
 	defer resp.Body.Close()
 
-	return nil
+	// Print the response status
+	fmt.Println(resp.Status)
 }
