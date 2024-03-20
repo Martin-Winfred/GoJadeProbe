@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Martin-Winfred/GoJadeProbe/pkg/monitor" // 替换为你的项目和包的实际路径
+	"github.com/Martin-Winfred/GoJadeProbe/pkg/monitor"
 )
 
 type HostMonitor struct {
