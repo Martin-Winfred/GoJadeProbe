@@ -55,7 +55,7 @@ func encrypt(data []byte, passphrase string) ([]byte, error) {
 	return ciphertext, nil
 }
 
-func SentData(remoteHost string, iface string) error {
+func SentData(remoteHost string, iface string, passphrase string) error {
 	// Copy data to new struct
 	data, _ := monitor.GetHostMonitor(iface)
 	newData := HostMonitor{
@@ -81,7 +81,6 @@ func SentData(remoteHost string, iface string) error {
 		return err
 	}
 
-	passphrase := "test1"                                    // Replace with your actual passphrase
 	hash := sha256.Sum256([]byte(passphrase))                // Generate hash from passphrase
 	encryptedData, err := encrypt(jsonData, string(hash[:])) // Convert hash to string
 	if err != nil {
