@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"errors"
-	"log"
 	"net"
 	"os"
 	"runtime"
@@ -14,7 +13,7 @@ import (
 	net3 "github.com/shirou/gopsutil/v3/net"
 )
 
-// HostMonitor Stracture
+// HostMonitor Structure
 type HostMonitor struct {
 	Arch      string
 	OSInfo    string
@@ -33,38 +32,33 @@ type HostMonitor struct {
 	LocalIP   string
 }
 
-// GetHostMonitor| Rerturn the struct of HostMonitor
+// GetHostMonitor returns the HostMonitor struct
 func GetHostMonitor(targetInterface string) (hostMonitor HostMonitor, err error) {
 	hostMonitor.Arch = runtime.GOARCH
 	hostMonitor.OSInfo = runtime.GOOS
 	hostMonitor.Hostname, err = os.Hostname()
 	if err != nil {
-		err = errors.New("can't detect HostInfo")
-		return
+		return hostMonitor, errors.New("can't detect HostInfo")
 	}
 
 	hostMonitor.KernelVer, err = host.KernelVersion()
 	if err != nil {
-		err = errors.New("can not load kernelVerion")
-		return
+		return hostMonitor, errors.New("can not load kernelVerion")
 	}
 
 	hostMonitor.Platform, hostMonitor.Family, hostMonitor.Version, err = host.PlatformInformation()
 	if err != nil {
-		err = errors.New("can't load platform version")
-		return
+		return hostMonitor, errors.New("can't load platform version")
 	}
 
 	hostMonitor.CPULoad, err = cpu.Percent(time.Second, false)
 	if err != nil {
-		err = errors.New("unable to get CPU load per sec")
-		return
+		return hostMonitor, errors.New("unable to get CPU load per sec")
 	}
 
 	memInfo, err := mem.VirtualMemory()
 	if err != nil {
-		err = errors.New("unable to get memory load per sec")
-		return
+		return hostMonitor, errors.New("unable to get memory load per sec")
 	}
 	hostMonitor.MemUsage = memInfo.UsedPercent
 	hostMonitor.MemUsed = memInfo.Used
@@ -72,11 +66,10 @@ func GetHostMonitor(targetInterface string) (hostMonitor HostMonitor, err error)
 
 	netCard, err := net3.IOCounters(true)
 	if err != nil {
-		err = errors.New("can't get Net Info")
-		return
+		return hostMonitor, errors.New("can't get Net Info")
 	}
 	for _, card := range netCard {
-		if card.Name == targetInterface { // 修改为你需要的网络接口名称
+		if card.Name == targetInterface {
 			hostMonitor.NetName = card.Name
 			hostMonitor.BytesRecv = card.BytesRecv
 			hostMonitor.BytesSent = card.BytesSent
@@ -84,18 +77,21 @@ func GetHostMonitor(targetInterface string) (hostMonitor HostMonitor, err error)
 		}
 	}
 
-	hostMonitor.LocalIP = getLocalIP()
+	hostMonitor.LocalIP, err = getLocalIP()
+	if err != nil {
+		return hostMonitor, err
+	}
 
 	return hostMonitor, nil
 }
 
-func getLocalIP() string {
+func getLocalIP() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	defer conn.Close()
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	return localAddr.IP.String()
+	return localAddr.IP.String(), nil
 }
