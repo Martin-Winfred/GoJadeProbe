@@ -14,14 +14,7 @@ import (
 )
 
 // HostMonitor Structure
-type HostMonitor struct {
-	Arch      string
-	OSInfo    string
-	Hostname  string
-	KernelVer string
-	Version   string
-	Platform  string
-	Family    string
+type Probe struct {
 	CPULoad   []float64
 	MemUsage  float64
 	MemUsed   uint64
@@ -32,60 +25,75 @@ type HostMonitor struct {
 	LocalIP   string
 }
 
-// GetHostMonitor returns the HostMonitor struct
-func GetHostMonitor(targetInterface string) (hostMonitor HostMonitor, err error) {
-	hostMonitor.Arch = runtime.GOARCH
-	hostMonitor.OSInfo = runtime.GOOS
-	hostMonitor.Hostname, err = os.Hostname()
-	if err != nil {
-		return hostMonitor, errors.New("can't detect HostInfo")
-	}
+type HostInfo struct {
+	Arch      string
+	OSInfo    string
+	Hostname  string
+	KernelVer string
+	OSVersion string
+	Platform  string
+	Family    string
+}
 
-	hostMonitor.KernelVer, err = host.KernelVersion()
+// GetProbe returns the Probe struct
+func GetProbe(targetInterface string) (probe Probe, err error) {
+	probe.CPULoad, err = cpu.Percent(time.Second, false)
 	if err != nil {
-		return hostMonitor, errors.New("can not load kernelVerion")
-	}
-
-	hostMonitor.Platform, hostMonitor.Family, hostMonitor.Version, err = host.PlatformInformation()
-	if err != nil {
-		return hostMonitor, errors.New("can't load platform version")
-	}
-
-	hostMonitor.CPULoad, err = cpu.Percent(time.Second, false)
-	if err != nil {
-		return hostMonitor, errors.New("unable to get CPU load per sec")
+		return probe, errors.New("unable to get CPU load per sec")
 	}
 
 	memInfo, err := mem.VirtualMemory()
 	if err != nil {
-		return hostMonitor, errors.New("unable to get memory load per sec")
+		return probe, errors.New("unable to get memory load per sec")
 	}
-	hostMonitor.MemUsage = memInfo.UsedPercent
-	hostMonitor.MemUsed = memInfo.Used
-	hostMonitor.MemTotal = memInfo.Total
+	probe.MemUsage = memInfo.UsedPercent
+	probe.MemUsed = memInfo.Used
+	probe.MemTotal = memInfo.Total
 
 	netCard, err := net3.IOCounters(true)
 	if err != nil {
-		return hostMonitor, errors.New("can't get Net Info")
+		return probe, errors.New("can't get Net Info")
 	}
 	for _, card := range netCard {
 		if card.Name == targetInterface {
-			hostMonitor.NetName = card.Name
-			hostMonitor.BytesRecv = card.BytesRecv
-			hostMonitor.BytesSent = card.BytesSent
+			probe.NetName = card.Name
+			probe.BytesRecv = card.BytesRecv
+			probe.BytesSent = card.BytesSent
 			break
 		}
 	}
 
-	hostMonitor.LocalIP, err = getLocalIP()
+	probe.LocalIP, err = GetLocalIP()
 	if err != nil {
-		return hostMonitor, err
+		return probe, err
 	}
 
-	return hostMonitor, nil
+	return probe, nil
 }
 
-func getLocalIP() (string, error) {
+// GetHostInfo returns the HostInfo struct
+func GetHostInfo() (hostInfo HostInfo, err error) {
+	hostInfo.Arch = runtime.GOARCH
+	hostInfo.OSInfo = runtime.GOOS
+	hostInfo.Hostname, err = os.Hostname()
+	if err != nil {
+		return hostInfo, errors.New("can't detect HostInfo")
+	}
+
+	hostInfo.KernelVer, err = host.KernelVersion()
+	if err != nil {
+		return hostInfo, errors.New("can not load kernelVerion")
+	}
+
+	hostInfo.Platform, hostInfo.Family, hostInfo.OSVersion, err = host.PlatformInformation()
+	if err != nil {
+		return hostInfo, errors.New("can't load platform version")
+	}
+
+	return hostInfo, nil
+}
+
+func GetLocalIP() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
 		return "", err
