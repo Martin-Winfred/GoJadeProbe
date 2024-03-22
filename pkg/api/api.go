@@ -17,6 +17,7 @@ type Probe struct {
 	BytesRecv uint64    `json:"bytes_recv"`
 	BytesSent uint64    `json:"bytes_sent"`
 	LocalIP   string    `json:"local_ip"`
+	Uuid      string    `json:"uuid"`
 }
 
 type HostInfo struct {
@@ -27,9 +28,10 @@ type HostInfo struct {
 	OSVersion string `json:"os_version"`
 	Platform  string `json:"platform"`
 	Family    string `json:"family"`
+	Uuid      string `json:"uuid"`
 }
 
-func SentProbeData(remoteHost string, iface string) error {
+func SentProbeData(remoteHost string, iface string, uuid string) error {
 	// Copy data to new struct
 	data, _ := monitor.GetProbe(iface)
 	newData := Probe{
@@ -41,6 +43,7 @@ func SentProbeData(remoteHost string, iface string) error {
 		BytesRecv: data.BytesRecv,
 		BytesSent: data.BytesSent,
 		LocalIP:   data.LocalIP,
+		Uuid:      uuid,
 	}
 
 	jsonData, err := json.Marshal(newData)
@@ -57,7 +60,7 @@ func SentProbeData(remoteHost string, iface string) error {
 	return nil
 }
 
-func SentHostInfo(remoteHost string, iface string) error {
+func SentHostInfo(remoteHost string, iface string, uuid string) error {
 	// Copy data to new struct
 	data, _ := monitor.GetHostInfo()
 	newData := HostInfo{
@@ -68,6 +71,64 @@ func SentHostInfo(remoteHost string, iface string) error {
 		OSVersion: data.OSVersion,
 		Platform:  data.Platform,
 		Family:    data.Family,
+		Uuid:      uuid,
+	}
+
+	jsonData, err := json.Marshal(newData)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(remoteHost, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+func SentEncProbeData(remoteHost string, iface string, uuid string, Passwd string) error {
+	// Copy data to new struct
+	data, _ := monitor.GetProbe(iface)
+	newData := Probe{
+		CPULoad:   data.CPULoad,
+		MemUsage:  data.MemUsage,
+		MemUsed:   data.MemUsed,
+		MemTotal:  data.MemTotal,
+		NetName:   data.NetName,
+		BytesRecv: data.BytesRecv,
+		BytesSent: data.BytesSent,
+		LocalIP:   data.LocalIP,
+		Uuid:      encrypt(uuid, Passwd),
+	}
+
+	jsonData, err := json.Marshal(newData)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(remoteHost, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+func SentEncHostInfo(remoteHost string, iface string, uuid string, Passwd string) error {
+	// Copy data to new struct
+	data, _ := monitor.GetHostInfo()
+	newData := HostInfo{
+		Arch:      data.Arch,
+		OSInfo:    data.OSInfo,
+		Hostname:  encrypt(data.Hostname, Passwd),
+		KernelVer: data.KernelVer,
+		OSVersion: data.OSVersion,
+		Platform:  data.Platform,
+		Family:    data.Family,
+		Uuid:      encrypt(uuid, Passwd),
 	}
 
 	jsonData, err := json.Marshal(newData)

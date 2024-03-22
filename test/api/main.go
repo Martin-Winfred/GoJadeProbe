@@ -7,5 +7,9 @@ import (
 )
 
 func main() {
-	myapi.SentData("http://127.0.0.1:5000/api", "eth0")
+	myapi.SentHostInfo("http://127.0.0.1:5000/api/info", "eth0", "123456")
+	myapi.SentProbeData("http://127.0.0.1:5000/api/probe", "eth0", "123456")
+	myapi.SentEncHostInfo("http://127.0.0.1:5000/api/info", "eth0", "123456", "dhrydhfjfufj#$6&")
+	myapi.SentEncProbeData("http://127.0.0.1:5000/api/probe", "eth0", "123456", "asdf1234asdf1234")
+
 }
