@@ -22,14 +22,53 @@ func main() {
 	println("Report Interval", config.ReportInterval)
 	println("Monitor Intrface", config.InterfaceName)
 
-	// Start the probe
+	//Sent Host Info
+	if config.Encrypted {
+		err := api.SentEncHostInfo(
+			fmt.Sprintf("http://%s:%v/api/info", config.Address, config.Port),
+			fmt.Sprintf("%v", config.InterfaceName),
+			config.UUID, config.Password,
+		)
+		if err != nil {
+			log.Print("Failed to send host info: ", err)
+			panic(err)
+		}
+	} else {
+		err := api.SentHostInfo(
+			fmt.Sprintf("http://%s:%v/api/info", config.Address, config.Port),
+			fmt.Sprintf("%v", config.InterfaceName),
+			config.UUID,
+		)
+		if err != nil {
+			log.Print("Failed to send host info: ", err)
+			panic(err)
+		}
+	}
+
+	//Sent Probe Data
 	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
 	for range ticker.C {
-		api.SentData(
-			fmt.Sprintf("http://%s:%v/api", config.Address, config.Port),
-			fmt.Sprintf("%v", config.InterfaceName),
-			config.Password,
-		)
+		if config.Encrypted {
+			err := api.SentEncProbeData(
+				fmt.Sprintf("http://%s:%v/api/probe", config.Address, config.Port),
+				fmt.Sprintf("%v", config.InterfaceName),
+				config.UUID, config.Password,
+			)
+			if err != nil {
+				log.Print("Failed to send probe data: ", err)
+				panic(err)
+			}
+		} else {
+			err := api.SentProbeData(
+				fmt.Sprintf("http://%s:%v/api/probe", config.Address, config.Port),
+				fmt.Sprintf("%v", config.InterfaceName),
+				config.UUID,
+			)
+			if err != nil {
+				log.Print("Failed to send probe data: ", err)
+				panic(err)
+			}
+		}
 	}
 
 }
