@@ -15,6 +15,7 @@ type Myconfig struct {
 	UUID           string
 	ReportInterval int
 	InterfaceName  string
+	Encrypted      bool
 }
 
 func LoadIni() (*Myconfig, error) {
@@ -40,6 +41,8 @@ func LoadIni() (*Myconfig, error) {
 	}
 
 	password := sec.Key("password").String()
+
+	encryted, err := sec.Key("encrypted").Bool()
 
 	sec = cfg.Section("report")
 	if sec == nil {
@@ -78,6 +81,7 @@ func LoadIni() (*Myconfig, error) {
 		UUID:           uuid,
 		ReportInterval: reportInterval,
 		InterfaceName:  interfaceName,
+		Encrypted:      encryted,
 	}
 
 	return config, nil

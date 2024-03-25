@@ -2,70 +2,39 @@ package api
 
 import (
 	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/sha256"
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/Martin-Winfred/GoJadeProbe/pkg/monitor"
 )
 
-type HostMonitor struct {
-	Arch      string    `json:"arch"`
-	OSInfo    string    `json:"osInfo"`
-	Hostname  string    `json:"hostname"`
-	KernelVer string    `json:"kernelVer"`
-	Version   string    `json:"version"`
-	Platform  string    `json:"platform"`
-	Family    string    `json:"family"`
-	CPULoad   []float64 `json:"cpuLoad"`
-	MemUsage  float64   `json:"memUsage"`
-	MemUsed   uint64    `json:"memUsed"`
-	MemTotal  uint64    `json:"memTotal"`
-	NetName   string    `json:"netName"`
-	BytesRecv uint64    `json:"bytesRecv"`
-	BytesSent uint64    `json:"bytesSent"`
-	LocalIP   string    `json:"localIP"`
+type Probe struct {
+	CPULoad   []float64 `json:"cpu_load"`
+	MemUsage  float64   `json:"mem_usage"`
+	MemUsed   uint64    `json:"mem_used"`
+	MemTotal  uint64    `json:"mem_total"`
+	NetName   string    `json:"net_name"`
+	BytesRecv uint64    `json:"bytes_recv"`
+	BytesSent uint64    `json:"bytes_sent"`
+	LocalIP   string    `json:"local_ip"`
+	Uuid      string    `json:"uuid"`
 }
 
-// encrypt encrypts the data using AES.
-func encrypt(data []byte, passphrase string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(passphrase))
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a new GCM block
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a nonce
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
-
-	// Encrypt the data
-	ciphertext := gcm.Seal(nonce, nonce, data, nil)
-	return ciphertext, nil
+type HostInfo struct {
+	Arch      string `json:"arch"`
+	OSInfo    string `json:"os_info"`
+	Hostname  string `json:"hostname"`
+	KernelVer string `json:"kernel_ver"`
+	OSVersion string `json:"os_version"`
+	Platform  string `json:"platform"`
+	Family    string `json:"family"`
+	Uuid      string `json:"uuid"`
 }
 
-func SentData(remoteHost string, iface string, passphrase string) error {
+func SentProbeData(remoteHost string, iface string, uuid string) error {
 	// Copy data to new struct
-	data, _ := monitor.GetHostMonitor(iface)
-	newData := HostMonitor{
-		Arch:      data.Arch,
-		OSInfo:    data.OSInfo,
-		Hostname:  data.Hostname,
-		KernelVer: data.KernelVer,
-		Version:   data.Version,
-		Platform:  data.Platform,
-		Family:    data.Family,
+	data, _ := monitor.GetProbe(iface)
+	newData := Probe{
 		CPULoad:   data.CPULoad,
 		MemUsage:  data.MemUsage,
 		MemUsed:   data.MemUsed,
@@ -74,6 +43,7 @@ func SentData(remoteHost string, iface string, passphrase string) error {
 		BytesRecv: data.BytesRecv,
 		BytesSent: data.BytesSent,
 		LocalIP:   data.LocalIP,
+		Uuid:      uuid,
 	}
 
 	jsonData, err := json.Marshal(newData)
@@ -81,13 +51,92 @@ func SentData(remoteHost string, iface string, passphrase string) error {
 		return err
 	}
 
-	hash := sha256.Sum256([]byte(passphrase))                // Generate hash from passphrase
-	encryptedData, err := encrypt(jsonData, string(hash[:])) // Convert hash to string
+	resp, err := http.Post(remoteHost, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+func SentHostInfo(remoteHost string, iface string, uuid string) error {
+	// Copy data to new struct
+	data, _ := monitor.GetHostInfo()
+	newData := HostInfo{
+		Arch:      data.Arch,
+		OSInfo:    data.OSInfo,
+		Hostname:  data.Hostname,
+		KernelVer: data.KernelVer,
+		OSVersion: data.OSVersion,
+		Platform:  data.Platform,
+		Family:    data.Family,
+		Uuid:      uuid,
+	}
+
+	jsonData, err := json.Marshal(newData)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(remoteHost, "application/octet-stream", bytes.NewBuffer(encryptedData))
+	resp, err := http.Post(remoteHost, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+func SentEncProbeData(remoteHost string, iface string, uuid string, Passwd string) error {
+	// Copy data to new struct
+	data, _ := monitor.GetProbe(iface)
+	newData := Probe{
+		CPULoad:   data.CPULoad,
+		MemUsage:  data.MemUsage,
+		MemUsed:   data.MemUsed,
+		MemTotal:  data.MemTotal,
+		NetName:   data.NetName,
+		BytesRecv: data.BytesRecv,
+		BytesSent: data.BytesSent,
+		LocalIP:   data.LocalIP,
+		Uuid:      encrypt(uuid, Passwd),
+	}
+
+	jsonData, err := json.Marshal(newData)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(remoteHost, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
+
+func SentEncHostInfo(remoteHost string, iface string, uuid string, Passwd string) error {
+	// Copy data to new struct
+	data, _ := monitor.GetHostInfo()
+	newData := HostInfo{
+		Arch:      data.Arch,
+		OSInfo:    data.OSInfo,
+		Hostname:  encrypt(data.Hostname, Passwd),
+		KernelVer: data.KernelVer,
+		OSVersion: data.OSVersion,
+		Platform:  data.Platform,
+		Family:    data.Family,
+		Uuid:      encrypt(uuid, Passwd),
+	}
+
+	jsonData, err := json.Marshal(newData)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(remoteHost, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}
